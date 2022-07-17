@@ -1,0 +1,40 @@
+# Start from golang base image
+FROM golang:1.17-alpine as builder
+
+# ENV GO111MODULE=on
+
+# Add Maintainer info
+LABEL maintainer="Dementyanov Vasiliy <dementr80@gmail.com>"
+
+# Install git.
+# Git is required for fetching the dependencies.
+RUN apk update && apk add --no-cache git && apk add build-base
+
+# Set the current working directory inside the container 
+WORKDIR /opt/go-postgres-docker-template
+
+# Copy go mod and sum files 
+COPY go.mod go.sum ./
+
+# Download all dependencies. Dependencies will be cached if the go.mod and the go.sum files are not changed 
+RUN go mod download 
+
+# Copy the source from the current directory to the working Directory inside the container 
+COPY . .
+
+RUN go install -v golang.org/x/tools/gopls@latest
+RUN go install -v github.com/go-delve/delve/cmd/dlv@latest
+
+ARG USERNAME=vscode
+ARG GROUPNAME=vscode
+
+# Create a group and user
+RUN addgroup -S $GROUPNAME
+RUN adduser -G $GROUPNAME -s /bin/sh -D $USERNAME
+#RUN echo "builder ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+RUN chown -R $USERNAME:$GROUPNAME /opt/go-postgres-docker-template
+RUN chmod 755 /opt/go-postgres-docker-template
+
+# Tell docker that all future commands should run as the appuser user
+#USER $USERNAME
